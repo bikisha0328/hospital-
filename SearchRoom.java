@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class SearchRoom extends JFrame {
@@ -43,11 +44,13 @@ public class SearchRoom extends JFrame {
         table.setForeground(Color.white);
         panel.add(table);
 
-        try {
-            conn c = new conn();
-            String q = "select * from room";
-            ResultSet resultSet = c.statement.executeQuery(q);
-            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+        try (conn c = new conn()) {
+            String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room";
+            try (PreparedStatement ps = c.getConnection().prepareStatement(q)) {
+                try (ResultSet resultSet = ps.executeQuery()){
+                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                }
+            }
 
         }catch (Exception e){
             e.printStackTrace();
@@ -85,11 +88,14 @@ public class SearchRoom extends JFrame {
         Search.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String q = "select * from Room where Availability = '"+choice.getSelectedItem()+"'";
-                try {
-                    conn c = new conn();
-                    ResultSet resultSet = c.statement.executeQuery(q);
-                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room where lower(Availability) like ?";
+                try (conn c = new conn()) {
+                    try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                        ps.setString(1, (choice.getSelectedItem() == null ? "" : choice.getSelectedItem().toLowerCase()) + "%");
+                        try (ResultSet resultSet = ps.executeQuery()){
+                            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                        }
+                    }
                 }catch (Exception E){
                     E.printStackTrace();
                 }
@@ -113,10 +119,15 @@ public class SearchRoom extends JFrame {
         setSize(700,500);
         setLayout(null);
         setLocation(450,250);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
     }
     public static void main(String[] args) {
-        new SearchRoom();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new SearchRoom();
+        });
     }
 }
 

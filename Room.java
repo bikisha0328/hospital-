@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class Room extends JFrame {
@@ -32,12 +33,13 @@ public class Room extends JFrame {
         table.setBackground(new Color(90, 156, 163));
         panel.add(table);
 
-        try{
-
-            conn c = new conn();
-            String q = "select * from room";
-            ResultSet resultSet = c.statement.executeQuery(q);
-            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+        try (conn c = new conn()){
+            String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room";
+            try (PreparedStatement ps = c.getConnection().prepareStatement(q)) {
+                try (ResultSet resultSet = ps.executeQuery()){
+                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                }
+            }
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -79,10 +81,15 @@ public class Room extends JFrame {
         setSize(900,600);
         setLayout(null);
         setLocation(300,230);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
     }
     public static void main(String[] args) {
-        new Room();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new Room();
+        });
     }
 }
 

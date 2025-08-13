@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class update_patient_details extends JFrame {
@@ -40,13 +41,14 @@ public class update_patient_details extends JFrame {
         choice.setBounds(248,85,140,25);
         panel.add(choice);
 
-        try {
-            conn c= new conn();
-            ResultSet resultSet = c.statement.executeQuery("select * from Patient_Info");
-            while (resultSet.next()){
-                choice.add(resultSet.getString("Name"));
+        try (conn c= new conn()) {
+            try (PreparedStatement ps = c.getConnection().prepareStatement("select Name from patient_info order by Name")) {
+                try (ResultSet resultSet = ps.executeQuery()) {
+                    while (resultSet.next()){
+                        choice.add(resultSet.getString("Name"));
+                    }
+                }
             }
-
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -100,21 +102,38 @@ public class update_patient_details extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String id = choice.getSelectedItem();
-                String q = "select * from Patient_Info where Name = '"+id+"'";
-                try{
-                    conn c = new conn();
-                    ResultSet resultSet = c.statement.executeQuery(q);
-                    while (resultSet.next()){
-                        textFieldR.setText(resultSet.getString("Room_Number"));
-                        textFieldINTIme.setText(resultSet.getString("Time"));
-                        textFieldAmount.setText(resultSet.getString("Deposite"));
+                String q = "select Room_Number, Time, Deposit from patient_info where Name = ? limit 1";
+                try (conn c = new conn()){
+                    try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                        ps.setString(1, id);
+                        try (ResultSet resultSet = ps.executeQuery()){
+                            if (resultSet.next()){
+                                textFieldR.setText(resultSet.getString("Room_Number"));
+                                textFieldINTIme.setText(resultSet.getString("Time"));
+                                textFieldAmount.setText(resultSet.getString("Deposit"));
+                            } else {
+                                JOptionPane.showMessageDialog(null, "No patient found for: " + id);
+                                return;
+                            }
+                        }
                     }
 
-                    ResultSet resultSet1 = c.statement.executeQuery("select* from room where room_no = '"+textFieldR.getText()+"'");
-                    while (resultSet1.next()){
-                        String price = resultSet1.getString("Price");
-                        int amountPaid = Integer.parseInt(price) - Integer.parseInt(textFieldAmount.getText());
-                        textFieldPending.setText(""+amountPaid);
+                    try (PreparedStatement ps2 = c.getConnection().prepareStatement("select Price from Room where room_no = ?")) {
+                        ps2.setString(1, textFieldR.getText());
+                        try (ResultSet resultSet1 = ps2.executeQuery()){
+                            if (resultSet1.next()){
+                                String price = resultSet1.getString("Price");
+                                int pending;
+                                try {
+                                    int priceVal = Integer.parseInt(price);
+                                    int paidVal = Integer.parseInt(textFieldAmount.getText());
+                                    pending = Math.max(0, priceVal - paidVal);
+                                } catch (NumberFormatException nfe) {
+                                    pending = 0;
+                                }
+                                textFieldPending.setText(""+pending);
+                            }
+                        }
                     }
 
                 }catch (Exception E){
@@ -131,13 +150,27 @@ public class update_patient_details extends JFrame {
         update.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
-                    conn c = new conn();
+                String room = textFieldR.getText().trim();
+                String time = textFieldINTIme.getText().trim();
+                String amount = textFieldAmount.getText().trim();
+                if (room.isEmpty() || time.isEmpty() || amount.isEmpty()){
+                    JOptionPane.showMessageDialog(null, "Please fill room, time and amount.", "Validation", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                try { Integer.parseInt(amount); } catch (NumberFormatException nfe) {
+                    JOptionPane.showMessageDialog(null, "Amount must be a number.", "Validation", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                try (conn c = new conn()) {
                     String q = choice.getSelectedItem();
-                    String room = textFieldR.getText();
-                    String time = textFieldINTIme.getText();
-                    String amount = textFieldAmount.getText();
-                    c.statement.executeUpdate("update Patient_Info set Room_Number = '"+room+"', Time = '"+time+"', Deposite = '"+amount+"' where name = '"+q+"'" );
+                    String updateSql = "update patient_info set Room_Number = ?, Time = ?, Deposit = ? where Name = ?";
+                    try (PreparedStatement ps = c.getConnection().prepareStatement(updateSql)){
+                        ps.setString(1, room);
+                        ps.setString(2, time);
+                        ps.setString(3, amount);
+                        ps.setString(4, q);
+                        ps.executeUpdate();
+                    }
                     JOptionPane.showMessageDialog(null,"Updated Successfully");
                     setVisible(false);
                 }catch (Exception E){
@@ -162,11 +195,16 @@ public class update_patient_details extends JFrame {
         setSize(950,500);
         setLayout(null);
         setLocation(400,250);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
     public static void main(String[] args) {
-        new update_patient_details();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new update_patient_details();
+        });
     }
 }
 

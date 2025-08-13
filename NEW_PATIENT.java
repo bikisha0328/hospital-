@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Date;
 
@@ -88,6 +89,10 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
         r2.setBounds(350,191,80,15);
         panel.add(r2);
 
+        ButtonGroup genderGroup = new ButtonGroup();
+        genderGroup.add(r1);
+        genderGroup.add(r2);
+
         JLabel labelDisease = new JLabel("Disease :");
         labelDisease.setBounds(35,231,200,14);
         labelDisease.setFont(new Font("Tahoma",Font.BOLD,14));
@@ -105,11 +110,14 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
         panel.add(labelRoom);
 
         c1 = new Choice();
-        try {
-            conn c = new conn();
-            ResultSet resultSet = c.statement.executeQuery("select * from Room");
-            while (resultSet.next()){
-                c1.add(resultSet.getString("room_no"));
+        try (conn c = new conn()) {
+            String onlyAvailable = "select room_no from Room where lower(Availability) like 'avail%'";
+            try (PreparedStatement ps = c.getConnection().prepareStatement(onlyAvailable)) {
+                try (ResultSet resultSet = ps.executeQuery()) {
+                    while (resultSet.next()){
+                        c1.add(resultSet.getString("room_no"));
+                    }
+                }
             }
         }catch (Exception e){
             e.printStackTrace();
@@ -162,6 +170,8 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
         setSize(850,550);
         setLayout(null);
         setLocation(300,250);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
@@ -169,33 +179,90 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == b1){
-            conn c = new conn();
-            String radioBTN = null;
+            String gender = null;
             if (r1.isSelected()){
-                radioBTN = "Male";
+                gender = "Male";
             }else if (r2.isSelected()){
-                radioBTN = "Female";
+                gender = "Female";
             }
-            String s1 = (String)comboBox.getSelectedItem();
-            String s2 =  textFieldNumber.getText();
-            String s3 =  textName.getText();
-            String s4 =  radioBTN;
-            String s5 =  textFieldDisease.getText();
-            String s6 =  c1.getSelectedItem();
-            String s7 =  date.getText();
-            String s8 = textFieldDeposite.getText();
+            String idType = (String)comboBox.getSelectedItem();
+            String number =  textFieldNumber.getText().trim();
+            String name =  textName.getText().trim();
+            String disease =  textFieldDisease.getText().trim();
+            String roomNo =  c1.getSelectedItem();
+            String time =  date.getText();
+            String depositText = textFieldDeposite.getText().trim();
 
+            if (number.isEmpty() || name.isEmpty() || gender == null || disease.isEmpty() || roomNo == null || depositText.isEmpty()){
+                JOptionPane.showMessageDialog(this, "Please fill all fields and select gender.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int deposit;
             try {
+                deposit = Integer.parseInt(depositText);
+                if (deposit < 0) throw new NumberFormatException("negative");
+            } catch (NumberFormatException nfe) {
+                JOptionPane.showMessageDialog(this, "Deposit must be a non-negative number.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
-                String q ="insert into Patient_Info values ('"+s1+"', '"+s2+"','"+s3+"','"+s4+"', '"+s5+"', '"+s6+"', '"+s7+"', '"+s8+"')";
-                String q1 = "update room set Availability = 'Occupied' where room_no = "+s6;
-                c.statement.executeUpdate(q);
-                c.statement.executeUpdate(q1);
-                JOptionPane.showMessageDialog(null, "added Successfully");
-                setVisible(false);
+            try (conn c = new conn()) {
+                boolean previousAutoCommit = true;
+                try {
+                    previousAutoCommit = c.getConnection().getAutoCommit();
+                    c.getConnection().setAutoCommit(false);
+
+                    // Ensure selected room is still available at insert time (locked)
+                    String roomCheck = "select Availability from room where room_no = ? for update";
+                    try (PreparedStatement checkPs = c.getConnection().prepareStatement(roomCheck)) {
+                        checkPs.setString(1, roomNo);
+                        try (ResultSet rs = checkPs.executeQuery()) {
+                            if (!rs.next()) {
+                                JOptionPane.showMessageDialog(this, "Selected room not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                                c.getConnection().rollback();
+                                return;
+                            }
+                            String availability = rs.getString(1);
+                            if (!"Available".equalsIgnoreCase(availability)) {
+                                JOptionPane.showMessageDialog(this, "Selected room is no longer available.", "Error", JOptionPane.ERROR_MESSAGE);
+                                c.getConnection().rollback();
+                                return;
+                            }
+                        }
+                    }
+
+                    String insert = "insert into patient_info (ID, Number, Name, Gender, Patient_Disease, Room_Number, Time, Deposit) values (?,?,?,?,?,?,?,?)";
+                    try (PreparedStatement ps = c.getConnection().prepareStatement(insert)) {
+                        ps.setString(1, idType);
+                        ps.setString(2, number);
+                        ps.setString(3, name);
+                        ps.setString(4, gender);
+                                            ps.setString(5, disease);
+                    ps.setString(6, roomNo);
+                    ps.setString(7, time);
+                    ps.setString(8, String.valueOf(deposit));
+                        ps.executeUpdate();
+                    }
+
+                    String occupy = "update room set Availability = 'Occupied' where room_no = ?";
+                    try (PreparedStatement occ = c.getConnection().prepareStatement(occupy)) {
+                        occ.setString(1, roomNo);
+                        occ.executeUpdate();
+                    }
+
+                    c.getConnection().commit();
+                    JOptionPane.showMessageDialog(this, "Added Successfully");
+                    setVisible(false);
+                } catch (Exception txe) {
+                    try { c.getConnection().rollback(); } catch (Exception ignored) {}
+                    throw txe;
+                } finally {
+                    try { c.getConnection().setAutoCommit(previousAutoCommit); } catch (Exception ignored) {}
+                }
 
             }catch (Exception E) {
                 E.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Database error: " + E.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }else {
             setVisible(false);
@@ -205,7 +272,10 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
     }
 
     public static void main(String[] args) {
-        new NEW_PATIENT();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new NEW_PATIENT();
+        });
     }
 
 

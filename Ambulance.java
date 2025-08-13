@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class Ambulance extends JFrame{
@@ -22,11 +23,13 @@ public class Ambulance extends JFrame{
         table.setFont(new Font("Tahoma",Font.BOLD,12));
         panel.add(table);
 
-        try{
-            conn c = new conn();
+        try (conn c = new conn()){
             String q = "select * from Ambulance";
-            ResultSet resultSet = c.statement.executeQuery(q);
-            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+            try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                try (ResultSet resultSet = ps.executeQuery()){
+                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                }
+            }
 
         }catch (Exception e){
             e.printStackTrace();
@@ -74,10 +77,15 @@ public class Ambulance extends JFrame{
         setSize(900,600);
         setLayout(null);
         setLocation(300,200);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
     }
     public static void main(String[] args) {
-        new Ambulance();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new Ambulance();
+        });
     }
 }
 

@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Date;
 
@@ -22,7 +23,7 @@ public class patient_discharge extends JFrame {
         label.setForeground(Color.white);
         panel.add(label);
 
-        JLabel label2 = new JLabel("Customer Id");
+        JLabel label2 = new JLabel("Patient Number");
         label2.setBounds(30,80,150,20);
         label2.setFont(new Font("Tahoma",Font.BOLD,14));
         label2.setForeground(Color.white);
@@ -32,13 +33,14 @@ public class patient_discharge extends JFrame {
         choice.setBounds(200,80,150,25);
         panel.add(choice);
 
-        try{
-            conn c = new conn();
-            ResultSet resultSet = c.statement.executeQuery("select * from Patient_Info");
-            while (resultSet.next()){
-                choice.add(resultSet.getString("number"));
+        try (conn c = new conn()){
+            try (PreparedStatement ps = c.getConnection().prepareStatement("select Number from patient_info order by Number")){
+                try (ResultSet resultSet = ps.executeQuery()){
+                    while (resultSet.next()){
+                        choice.add(resultSet.getString("Number"));
+                    }
+                }
             }
-
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -89,12 +91,37 @@ public class patient_discharge extends JFrame {
         discharge.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                conn c = new conn();
-                try {
-                    c.statement.executeUpdate("delete from Patient_Info where number = '"+choice.getSelectedItem()+"'");
-                    c.statement.executeUpdate("update room set Availability = 'Available' where room_no = '"+RNo.getText()+"'");
-                    JOptionPane.showMessageDialog(null,"Done");
-                    setVisible(false);
+                String selectedNumber = choice.getSelectedItem();
+                if (selectedNumber == null || selectedNumber.trim().isEmpty()){
+                    JOptionPane.showMessageDialog(null, "Please select a patient number.", "Validation", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                if (RNo.getText() == null || RNo.getText().trim().isEmpty()){
+                    JOptionPane.showMessageDialog(null, "Please click Check to load details first.", "Validation", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                try (conn c = new conn()) {
+                    boolean prev = true;
+                    try {
+                        prev = c.getConnection().getAutoCommit();
+                        c.getConnection().setAutoCommit(false);
+                        try (PreparedStatement del = c.getConnection().prepareStatement("delete from patient_info where Number = ?")){
+                            del.setString(1, selectedNumber);
+                            del.executeUpdate();
+                        }
+                        try (PreparedStatement free = c.getConnection().prepareStatement("update Room set Availability = 'Availabil' where room_no = ?")){
+                            free.setString(1, RNo.getText());
+                            free.executeUpdate();
+                        }
+                        c.getConnection().commit();
+                        JOptionPane.showMessageDialog(null,"Done");
+                        setVisible(false);
+                    } catch (Exception inner) {
+                        try { c.getConnection().rollback(); } catch (Exception ignored) {}
+                        throw inner;
+                    } finally {
+                        try { c.getConnection().setAutoCommit(prev); } catch (Exception ignored) {}
+                    }
                 }catch (Exception E){
                     E.printStackTrace();
                 }
@@ -111,12 +138,20 @@ public class patient_discharge extends JFrame {
         Check.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                conn c = new conn();
-                try{
-                    ResultSet resultSet = c.statement.executeQuery("select * from Patient_Info where number = '"+choice.getSelectedItem()+"'");
-                    while (resultSet.next()){
-                        RNo.setText(resultSet.getString("Room_Number"));
-                        INTime.setText(resultSet.getString("Time"));
+                String selectedNumber = choice.getSelectedItem();
+                if (selectedNumber == null) return;
+                try (conn c = new conn()){
+                    try (PreparedStatement ps = c.getConnection().prepareStatement("select Room_Number, Time from patient_info where Number = ? limit 1")){
+                        ps.setString(1, selectedNumber);
+                        try (ResultSet resultSet = ps.executeQuery()){
+                            if (resultSet.next()){
+                                RNo.setText(resultSet.getString("Room_Number"));
+                                INTime.setText(resultSet.getString("Time"));
+                            } else {
+                                RNo.setText("");
+                                INTime.setText("");
+                            }
+                        }
                     }
                 }catch (Exception E){
                     E.printStackTrace();
@@ -141,11 +176,16 @@ public class patient_discharge extends JFrame {
         setSize(800,400);
         setLayout(null);
         setLocation(400,250);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
     public static void main(String[] args) {
-        new patient_discharge();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new patient_discharge();
+        });
     }
 }
 
