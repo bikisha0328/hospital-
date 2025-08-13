@@ -155,10 +155,15 @@ public class Reception extends JFrame {
         setSize(1950,1090);
         getContentPane().setBackground(Color.WHITE);
         setLayout(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
     }
 
     public static void main(String[] args) {
-        new Reception();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new Reception();
+        });
     }
 }

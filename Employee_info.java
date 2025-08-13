@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class Employee_info extends JFrame {
@@ -22,11 +23,13 @@ public class Employee_info extends JFrame {
         table.setFont(new Font("Tahoma",Font.BOLD,12));
         panel.add(table);
 
-        try{
-            conn c = new conn();
+        try (conn c = new conn()){
             String q = "select * from EMP_INFO";
-            ResultSet resultSet = c.statement.executeQuery(q);
-            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+            try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                try (ResultSet resultSet = ps.executeQuery()){
+                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                }
+            }
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -77,11 +80,16 @@ public class Employee_info extends JFrame {
         setSize(1000,600);
         setLocation(350,230);
         setLayout(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
     public static void main(String[] args) {
-        new Employee_info();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new Employee_info();
+        });
     }
 }
 

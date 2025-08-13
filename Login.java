@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class Login extends JFrame implements ActionListener {
@@ -66,40 +67,53 @@ public class Login extends JFrame implements ActionListener {
         setSize(750,300);
         setLocation(400,270);
         setLayout(null);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == b1){
-            try{
-                conn c = new conn();
-                String user = textField.getText();
-                String Pass = jPasswordField.getText();
-
-                String q = "select * from login where ID = '"+user+"' and  PW = '"+Pass+"'";
-                ResultSet resultSet = c.statement.executeQuery(q);
-
-                if (resultSet.next()){
-                    new Reception();
-                    setVisible(false);
-                }else {
-                    JOptionPane.showMessageDialog(null,"Invalid");
+            String user = textField.getText().trim();
+            String Pass = String.valueOf(jPasswordField.getPassword());
+            if (user.isEmpty() || Pass.isEmpty()){
+                JOptionPane.showMessageDialog(this, "Username and Password are required.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try (conn c = new conn()){
+                String q = "select 1 from login where ID = ? and PW = ? limit 1";
+                try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                    ps.setString(1, user);
+                    ps.setString(2, Pass);
+                    try (ResultSet resultSet = ps.executeQuery()){
+                        if (resultSet.next()){
+                            new Reception();
+                            dispose();
+                        }else {
+                            JOptionPane.showMessageDialog(this,"Invalid credentials","Login Failed", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
                 }
-
             }catch (Exception E){
                 E.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Database error: " + E.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
 
         }else {
-            System.exit(10);
+            dispose();
         }
 
     }
 
 
     public static void main(String[] args) {
-        new Login();
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception ignored) {}
+            new Login();
+        });
     }
 
 

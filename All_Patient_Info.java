@@ -6,6 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
  public class All_Patient_Info extends JFrame {
@@ -22,11 +23,13 @@ import java.sql.ResultSet;
         table.setFont(new Font("Tahoma",Font.BOLD,12));
         panel.add(table);
 
-        try{
-            conn c = new conn();
+        try (conn c = new conn()){
             String q = "select * from Patient_Info";
-            ResultSet resultSet = c.statement.executeQuery(q);
-            table.setModel(DbUtils.resultSetToTableModel(resultSet));
+            try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
+                try (ResultSet resultSet = ps.executeQuery()){
+                    table.setModel(DbUtils.resultSetToTableModel(resultSet));
+                }
+            }
 
         }catch (Exception e){
             e.printStackTrace();
@@ -88,11 +91,16 @@ import java.sql.ResultSet;
         setSize(900,600);
         setLayout(null);
         setLocation(300,200);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
         setVisible(true);
 
     }
     public static void main(String[] args) {
-        new All_Patient_Info();
+        SwingUtilities.invokeLater(() -> {
+            try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+            new All_Patient_Info();
+        });
     }
 }
 
