@@ -42,7 +42,7 @@ public class update_patient_details extends JFrame {
         panel.add(choice);
 
         try (conn c= new conn()) {
-            try (PreparedStatement ps = c.getConnection().prepareStatement("select Name from Patient_Info order by Name")) {
+            try (PreparedStatement ps = c.getConnection().prepareStatement("select Name from patient_info order by Name")) {
                 try (ResultSet resultSet = ps.executeQuery()) {
                     while (resultSet.next()){
                         choice.add(resultSet.getString("Name"));
@@ -102,7 +102,7 @@ public class update_patient_details extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String id = choice.getSelectedItem();
-                String q = "select Room_Number, Time, Deposite from Patient_Info where Name = ? limit 1";
+                String q = "select Room_Number, Time, Deposit from patient_info where Name = ? limit 1";
                 try (conn c = new conn()){
                     try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
                         ps.setString(1, id);
@@ -110,7 +110,7 @@ public class update_patient_details extends JFrame {
                             if (resultSet.next()){
                                 textFieldR.setText(resultSet.getString("Room_Number"));
                                 textFieldINTIme.setText(resultSet.getString("Time"));
-                                textFieldAmount.setText(resultSet.getString("Deposite"));
+                                textFieldAmount.setText(resultSet.getString("Deposit"));
                             } else {
                                 JOptionPane.showMessageDialog(null, "No patient found for: " + id);
                                 return;
@@ -118,7 +118,7 @@ public class update_patient_details extends JFrame {
                         }
                     }
 
-                    try (PreparedStatement ps2 = c.getConnection().prepareStatement("select Price from room where room_no = ?")) {
+                    try (PreparedStatement ps2 = c.getConnection().prepareStatement("select Price from Room where room_no = ?")) {
                         ps2.setString(1, textFieldR.getText());
                         try (ResultSet resultSet1 = ps2.executeQuery()){
                             if (resultSet1.next()){
@@ -163,7 +163,7 @@ public class update_patient_details extends JFrame {
                 }
                 try (conn c = new conn()) {
                     String q = choice.getSelectedItem();
-                    String updateSql = "update Patient_Info set Room_Number = ?, Time = ?, Deposite = ? where Name = ?";
+                    String updateSql = "update patient_info set Room_Number = ?, Time = ?, Deposit = ? where Name = ?";
                     try (PreparedStatement ps = c.getConnection().prepareStatement(updateSql)){
                         ps.setString(1, room);
                         ps.setString(2, time);

@@ -111,7 +111,7 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
 
         c1 = new Choice();
         try (conn c = new conn()) {
-            String onlyAvailable = "select room_no from room where Availability = 'Available'";
+            String onlyAvailable = "select room_no from Room where lower(Availability) like 'avail%'";
             try (PreparedStatement ps = c.getConnection().prepareStatement(onlyAvailable)) {
                 try (ResultSet resultSet = ps.executeQuery()) {
                     while (resultSet.next()){
@@ -231,16 +231,16 @@ public class NEW_PATIENT extends JFrame implements ActionListener {
                         }
                     }
 
-                    String insert = "insert into Patient_Info (ID, number, Name, Gender, Disease, Room_Number, Time, Deposite) values (?,?,?,?,?,?,?,?)";
+                    String insert = "insert into patient_info (ID, Number, Name, Gender, Patient_Disease, Room_Number, Time, Deposit) values (?,?,?,?,?,?,?,?)";
                     try (PreparedStatement ps = c.getConnection().prepareStatement(insert)) {
                         ps.setString(1, idType);
                         ps.setString(2, number);
                         ps.setString(3, name);
                         ps.setString(4, gender);
-                        ps.setString(5, disease);
-                        ps.setString(6, roomNo);
-                        ps.setString(7, time);
-                        ps.setInt(8, deposit);
+                                            ps.setString(5, disease);
+                    ps.setString(6, roomNo);
+                    ps.setString(7, time);
+                    ps.setString(8, String.valueOf(deposit));
                         ps.executeUpdate();
                     }
 

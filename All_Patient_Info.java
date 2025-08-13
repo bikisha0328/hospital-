@@ -24,7 +24,7 @@ import java.sql.ResultSet;
         panel.add(table);
 
         try (conn c = new conn()){
-            String q = "select * from Patient_Info";
+            String q = "select ID, Number, Name, Gender, Patient_Disease as Disease, Room_Number, Time, Deposit as Deposit from patient_info";
             try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
                 try (ResultSet resultSet = ps.executeQuery()){
                     table.setModel(DbUtils.resultSetToTableModel(resultSet));

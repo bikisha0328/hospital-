@@ -34,10 +34,10 @@ public class patient_discharge extends JFrame {
         panel.add(choice);
 
         try (conn c = new conn()){
-            try (PreparedStatement ps = c.getConnection().prepareStatement("select number from Patient_Info order by number")){
+            try (PreparedStatement ps = c.getConnection().prepareStatement("select Number from patient_info order by Number")){
                 try (ResultSet resultSet = ps.executeQuery()){
                     while (resultSet.next()){
-                        choice.add(resultSet.getString("number"));
+                        choice.add(resultSet.getString("Number"));
                     }
                 }
             }
@@ -105,11 +105,11 @@ public class patient_discharge extends JFrame {
                     try {
                         prev = c.getConnection().getAutoCommit();
                         c.getConnection().setAutoCommit(false);
-                        try (PreparedStatement del = c.getConnection().prepareStatement("delete from Patient_Info where number = ?")){
+                        try (PreparedStatement del = c.getConnection().prepareStatement("delete from patient_info where Number = ?")){
                             del.setString(1, selectedNumber);
                             del.executeUpdate();
                         }
-                        try (PreparedStatement free = c.getConnection().prepareStatement("update room set Availability = 'Available' where room_no = ?")){
+                        try (PreparedStatement free = c.getConnection().prepareStatement("update Room set Availability = 'Availabil' where room_no = ?")){
                             free.setString(1, RNo.getText());
                             free.executeUpdate();
                         }
@@ -141,7 +141,7 @@ public class patient_discharge extends JFrame {
                 String selectedNumber = choice.getSelectedItem();
                 if (selectedNumber == null) return;
                 try (conn c = new conn()){
-                    try (PreparedStatement ps = c.getConnection().prepareStatement("select Room_Number, Time from Patient_Info where number = ? limit 1")){
+                    try (PreparedStatement ps = c.getConnection().prepareStatement("select Room_Number, Time from patient_info where Number = ? limit 1")){
                         ps.setString(1, selectedNumber);
                         try (ResultSet resultSet = ps.executeQuery()){
                             if (resultSet.next()){

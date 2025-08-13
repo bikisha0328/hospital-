@@ -34,7 +34,7 @@ public class Room extends JFrame {
         panel.add(table);
 
         try (conn c = new conn()){
-            String q = "select * from room";
+            String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room";
             try (PreparedStatement ps = c.getConnection().prepareStatement(q)) {
                 try (ResultSet resultSet = ps.executeQuery()){
                     table.setModel(DbUtils.resultSetToTableModel(resultSet));

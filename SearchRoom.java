@@ -45,7 +45,7 @@ public class SearchRoom extends JFrame {
         panel.add(table);
 
         try (conn c = new conn()) {
-            String q = "select * from room";
+            String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room";
             try (PreparedStatement ps = c.getConnection().prepareStatement(q)) {
                 try (ResultSet resultSet = ps.executeQuery()){
                     table.setModel(DbUtils.resultSetToTableModel(resultSet));
@@ -88,10 +88,10 @@ public class SearchRoom extends JFrame {
         Search.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String q = "select * from Room where Availability = ?";
+                String q = "select room_no, Availability, Price, Room_Type as Bed_Type from Room where lower(Availability) like ?";
                 try (conn c = new conn()) {
                     try (PreparedStatement ps = c.getConnection().prepareStatement(q)){
-                        ps.setString(1, choice.getSelectedItem());
+                        ps.setString(1, (choice.getSelectedItem() == null ? "" : choice.getSelectedItem().toLowerCase()) + "%");
                         try (ResultSet resultSet = ps.executeQuery()){
                             table.setModel(DbUtils.resultSetToTableModel(resultSet));
                         }
